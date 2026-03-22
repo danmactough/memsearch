@@ -79,6 +79,22 @@ def _cfg_to_memsearch_kwargs(cfg: MemSearchConfig) -> dict:
     }
 
 
+def _normalize_compact_source(source: str | None) -> str | None:
+    """Normalize compact --source paths to the absolute form used at index time.
+
+    Relative and user-home paths are resolved to match the absolute `source`
+    values stored during indexing. Non-path filters are left unchanged.
+    """
+    if not source:
+        return None
+
+    candidate = Path(source).expanduser()
+    if candidate.is_absolute() or candidate.exists():
+        return str(candidate.resolve())
+
+    return source
+
+
 # -- Common CLI options --
 
 
@@ -540,11 +556,13 @@ def compact(
     if cfg.compact.prompt_file and not prompt_template:
         prompt_template = Path(cfg.compact.prompt_file).read_text(encoding="utf-8")
 
+    normalized_source = _normalize_compact_source(source)
+
     ms = MemSearch(**_cfg_to_memsearch_kwargs(cfg))
     try:
         summary = _run(
             ms.compact(
-                source=source,
+                source=normalized_source,
                 llm_provider=cfg.compact.llm_provider,
                 llm_model=cfg.compact.llm_model or None,
                 prompt_template=prompt_template,
@@ -556,6 +574,8 @@ def compact(
         if summary:
             click.echo("Compact complete. Summary:\n")
             click.echo(summary)
+        elif normalized_source:
+            click.echo(f"No chunks matched source: {normalized_source}")
         else:
             click.echo("No chunks to compact.")
     finally:

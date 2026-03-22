@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from click.testing import CliRunner
+
+from memsearch import cli as cli_module
+from memsearch.cli import cli
+
+
+class DummyMemSearch:
+    last_source = None
+
+    async def compact(self, **kwargs):
+        DummyMemSearch.last_source = kwargs["source"]
+        return ""
+
+    def close(self) -> None:
+        pass
+
+
+def test_normalize_compact_source_resolves_existing_relative_path(tmp_path: Path):
+    note = tmp_path / "memory" / "old-notes.md"
+    note.parent.mkdir()
+    note.write_text("# note\n")
+
+    cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+        normalized = cli_module._normalize_compact_source("./memory/old-notes.md")
+    finally:
+        os.chdir(cwd)
+
+    assert normalized == str(note.resolve())
+
+
+def test_compact_shows_matched_source_when_no_chunks(monkeypatch, tmp_path: Path):
+    note = tmp_path / "memory" / "old-notes.md"
+    note.parent.mkdir()
+    note.write_text("# note\n")
+
+    monkeypatch.setattr("memsearch.core.MemSearch", lambda **kwargs: DummyMemSearch())
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["compact", "--source", str(note)])
+
+    assert result.exit_code == 0
+    assert DummyMemSearch.last_source == str(note.resolve())
+    assert f"No chunks matched source: {note.resolve()}" in result.output
