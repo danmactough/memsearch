@@ -187,11 +187,11 @@ print(summary)
 
 # Compact only one file, using Claude
 summary = await mem.compact(
-    source="/Users/me/projects/myproject/.memsearch/memory/old-notes.md",
+    source="./memory/old-notes.md",
     llm_provider="anthropic",
 )
 
-# `source` should match the indexed absolute path for that file.
+# Relative paths are resolved to the absolute form used at index time.
 ```
 
 ---

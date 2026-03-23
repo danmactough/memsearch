@@ -279,10 +279,10 @@ Compress indexed chunks into a condensed markdown summary using an LLM:
 
 ```bash
 memsearch compact
-memsearch compact --llm-provider anthropic --source /Users/me/projects/myproject/.memsearch/memory/old-notes.md
+memsearch compact --llm-provider anthropic --source ./memory/old-notes.md
 ```
 
-`--source` should be the same absolute file path stored during indexing; relative paths and directory paths will not match existing chunks.
+Relative and `~` paths are automatically resolved to the absolute form used at index time.
 
 ### Utilities — `stats` / `reset`
 
