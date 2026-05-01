@@ -103,6 +103,7 @@ SUMMARY=""
 if command -v claude &>/dev/null; then
   SUMMARY=$(printf '%s' "$PARSED" | MEMSEARCH_NO_WATCH=1 CLAUDECODE= claude -p \
     --model haiku \
+    --bare \
     --no-session-persistence \
     --no-chrome \
     --system-prompt "$SYSTEM_PROMPT" \
