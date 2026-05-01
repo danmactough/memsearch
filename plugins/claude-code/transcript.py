@@ -19,6 +19,24 @@ class Turn:
     tool_calls: list[str] = field(default_factory=list)  # ["Bash(command=ls)", ...]
 
 
+def _extract_user_text_content(content: Any) -> str:
+    if isinstance(content, str):
+        return _strip_hook_tags(content)
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if not isinstance(block, dict):
+                continue
+            if block.get("type") == "tool_result":
+                continue
+            if block.get("type") == "text":
+                text = _strip_hook_tags(str(block.get("text", "")))
+                if text:
+                    parts.append(text)
+        return "\n".join(parts).strip()
+    return ""
+
+
 def parse_transcript(path: str | Path) -> list[Turn]:
     """Parse a JSONL transcript into a list of conversation turns.
 
@@ -62,11 +80,8 @@ def parse_transcript(path: str | Path) -> list[Turn]:
                 continue
 
             # Real user message
-            if isinstance(content, str) and content.strip():
-                # Strip XML tags injected by hooks
-                clean = _strip_hook_tags(content)
-                if not clean:
-                    continue
+            clean = _extract_user_text_content(content)
+            if clean:
                 # Save previous turn and start new one
                 if current_turn is not None:
                     turns.append(current_turn)
@@ -147,6 +162,19 @@ def format_turns(turns: list[Turn], highlight_idx: int = -1) -> str:
             lines.append(f"  Tools: {', '.join(turn.tool_calls)}")
         lines.append("")
     return "\n".join(lines)
+
+
+def format_transcript_for_summary(path: str | Path) -> str:
+    """Format a Claude Code transcript for LLM summarization."""
+    turns = parse_transcript(path)
+    if not turns:
+        return ""
+    return "\n".join(
+        [
+            "=== Transcript of a conversation between a human and Claude Code ===",
+            format_turns(turns).strip(),
+        ]
+    ).strip()
 
 
 def format_turn_index(turns: list[Turn]) -> str:

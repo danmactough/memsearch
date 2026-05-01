@@ -60,6 +60,7 @@ sequenceDiagram
 | | memsearch |
 |---|---|
 | **Zero intervention** | Capture and recall are fully automatic -- no commands, no manual saves |
+| **Manual save** | `/memsearch-summarize` summarizes the current session; `/memsearch-summarize all` summarizes all project sessions; `--session <id>` targets one session; `--dry-run` previews the AI prompt |
 | **Forked subagent recall** | Memory search runs in an isolated `context: fork`, keeping your main conversation clean |
 | **Hybrid search** | Dense vectors + BM25 sparse search fused with RRF -- better recall than vector-only |
 | **Transparent storage** | Plain `.md` files you can read, edit, grep, and commit to git |
@@ -71,6 +72,7 @@ sequenceDiagram
 ## Key Features
 
 - **Zero-config capture** -- conversations are automatically summarized and saved after each turn
+- **Manual summarization** -- `/memsearch-summarize` saves the current session, `/memsearch-summarize all` saves all project sessions, `--session <id>` targets one session, and `--dry-run` previews the AI prompt
 - **Semantic recall** -- Claude automatically searches past sessions when your question needs historical context
 - **Three-layer progressive disclosure** -- search, expand, and drill into original transcripts ([details](memory-recall.md))
 - **Forked subagent** -- memory recall runs in an isolated context, keeping your main conversation clean

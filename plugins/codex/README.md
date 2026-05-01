@@ -20,7 +20,7 @@ bash plugins/codex/scripts/install.sh
 ```
 
 The installer sets up everything automatically:
-- Copies the **memory-recall** skill to `~/.agents/skills/`
+- Copies the **memory-recall** and **memsearch-summarize** skills to `~/.agents/skills/`
 - Installs or updates memsearch hook entries in `~/.codex/hooks.json`
 - Enables the `codex_hooks` feature flag
 
@@ -47,6 +47,26 @@ memsearch search "test" --collection test_warmup 2>/dev/null; memsearch reset --
 | Session starts | Recent memory context is injected; you'll see `[memsearch v...]` in the status line |
 | Each prompt | A `[memsearch] Memory available` hint reminds Codex that memory-recall is available |
 | Each turn ends | The conversation is summarized and saved to a daily `.md` file |
+
+### Summarize sessions manually
+
+Use the `memsearch-summarize` skill (also triggered by `/memsearch-summarize`):
+
+```
+/memsearch-summarize           # summarize the current session
+/memsearch-summarize all       # summarize all sessions for this project
+/memsearch-summarize --dry-run # print the AI prompt without saving
+```
+
+Direct script usage:
+
+```bash
+python3 plugins/_shared/session_summarizer.py --agent codex --dry-run
+python3 plugins/_shared/session_summarizer.py --agent codex all --dry-run
+python3 plugins/_shared/session_summarizer.py --agent codex --session <session-id-or-prefix> --dry-run
+```
+
+`current` means the newest matching Codex rollout by file modification time after filtering to the current project and skipping internal `codex exec`/subagent rollouts. The skill parses Codex rollout JSONL into readable transcript text, shells out to `codex exec --model gpt-5.4-mini`, appends summaries to `.memsearch/memory/YYYY-MM-DD.md`, and re-indexes.
 
 ### Search past memories
 

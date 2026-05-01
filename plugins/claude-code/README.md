@@ -150,6 +150,26 @@ stateDiagram-v2
 | **Stop** | command | **yes** | 120s | Extract last turn from transcript with `parse-transcript.sh`, call `claude -p --model haiku` to summarize (third-person notes), append summary with session/turn anchors to daily `.md` |
 | **SessionEnd** | command | no | 10s | Stop the `memsearch watch` background process (cleanup) |
 
+### Manual summarization
+
+The plugin also provides `/memsearch-summarize`:
+
+```bash
+/memsearch-summarize           # summarize the current session
+/memsearch-summarize all       # summarize all sessions for this project
+/memsearch-summarize --dry-run # print the AI prompt without saving
+```
+
+Direct script usage:
+
+```bash
+python3 plugins/_shared/session_summarizer.py --agent claude --dry-run
+python3 plugins/_shared/session_summarizer.py --agent claude all --dry-run
+python3 plugins/_shared/session_summarizer.py --agent claude --session <session-id-or-prefix> --dry-run
+```
+
+`current` means the newest matching Claude JSONL transcript by file modification time after filtering to the current project. The command parses Claude Code JSONL transcripts into readable text, shells out to `claude -p --model haiku`, appends summaries to `.memsearch/memory/YYYY-MM-DD.md`, and re-indexes.
+
 ### What Each Hook Does
 
 #### SessionStart

@@ -31,6 +31,7 @@ If you experience issues with the Stop hook in strict sandbox mode, see [Trouble
 ## Key Features
 
 - **Automatic capture** -- conversations summarized via `codex exec` using `gpt-5.1-codex-mini` after each turn
+- **Manual summarization** -- `/memsearch-summarize` saves the current session, `/memsearch-summarize all` saves all project sessions via `codex exec --model gpt-5.4-mini`, `--session <id>` targets one session, and `--dry-run` previews the AI prompt
 - **Best-effort rollout drill-down** -- search and expand always work, with original rollout parsing available when Codex includes rollout anchors ([details](memory-recall.md))
 - **Shell hook architecture** -- similar to [Claude Code plugin](../claude-code/index.md), easy to understand and modify
 - **Orphan cleanup** -- handles missing `SessionEnd` hook gracefully (Codex doesn't have one)

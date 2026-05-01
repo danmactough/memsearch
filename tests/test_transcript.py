@@ -12,6 +12,7 @@ from transcript import (
     _strip_hook_tags,
     _summarize_tool_input,
     find_turn_context,
+    format_transcript_for_summary,
     format_turn_index,
     parse_transcript,
 )
@@ -82,6 +83,43 @@ def test_helpers_format_and_summarize() -> None:
     assert _extract_time("2026-03-07T05:10:11.123Z") == "05:10:11"
     assert _summarize_tool_input("Read", {"file_path": "a.md"}) == "Read(a.md)"
     assert _summarize_tool_input("Unknown", {"k": "v"}) == "Unknown(k=v)"
+
+
+def test_format_transcript_for_summary_reuses_turn_format(tmp_path: Path) -> None:
+    transcript = tmp_path / "sample.jsonl"
+    transcript.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "user",
+                        "uuid": "u1",
+                        "timestamp": "2026-03-07T05:00:01Z",
+                        "message": {"content": "Hello"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "content": [
+                                {"type": "text", "text": "World"},
+                                {"type": "tool_use", "name": "Bash", "input": {"command": "ls -la"}},
+                            ]
+                        },
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    output = format_transcript_for_summary(transcript)
+
+    assert "=== Transcript of a conversation between a human and Claude Code ===" in output
+    assert "Hello" in output
+    assert "**Assistant**: World" in output
+    assert "Tools: Bash(ls -la)" in output
 
 
 def test_format_turn_index_includes_tool_count() -> None:

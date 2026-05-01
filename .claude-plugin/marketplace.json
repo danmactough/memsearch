@@ -1,8 +1,7 @@
 {
   "name": "memsearch-plugins",
   "owner": {
-    "name": "Zilliz",
-    "email": "support@zilliz.com"
+    "name": "Dan MacTough"
   },
   "metadata": {
     "description": "Semantic memory search plugin for Claude Code — markdown-first, backed by Milvus",
@@ -12,11 +11,11 @@
     {
       "name": "memsearch",
       "description": "Automatic semantic memory for Claude Code — remembers what you worked on across sessions",
-      "version": "0.4.2-rc1",
+      "version": "0.4.2",
       "source": "./plugins/claude-code",
       "category": "productivity",
       "author": {
-        "name": "Zilliz"
+        "name": "Dan MacTough"
       },
       "homepage": "https://github.com/danmactough/memsearch",
       "repository": "https://github.com/danmactough/memsearch",

@@ -18,4 +18,11 @@ if [ -z "$MEMSEARCH_CMD" ]; then
   exit 0
 fi
 
+if [[ "$PROMPT" == /memsearch-summarize* ]]; then
+  msg="[memsearch] Summarize requested — run the memsearch-summarize command to save session memory"
+  json_msg=$(_json_encode_str "$msg")
+  echo "{\"systemMessage\": $json_msg}"
+  exit 0
+fi
+
 echo '{"systemMessage": "[memsearch] Memory available"}'
