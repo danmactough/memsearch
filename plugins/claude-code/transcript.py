@@ -19,9 +19,14 @@ class Turn:
     tool_calls: list[str] = field(default_factory=list)  # ["Bash(command=ls)", ...]
 
 
+def _is_continuation_marker(text: str) -> bool:
+    return text.strip().lower() == "[continuing from a previous session]"
+
+
 def _extract_user_text_content(content: Any) -> str:
     if isinstance(content, str):
-        return _strip_hook_tags(content)
+        text = _strip_hook_tags(content)
+        return "" if _is_continuation_marker(text) else text
     if isinstance(content, list):
         parts: list[str] = []
         for block in content:
@@ -31,7 +36,7 @@ def _extract_user_text_content(content: Any) -> str:
                 continue
             if block.get("type") == "text":
                 text = _strip_hook_tags(str(block.get("text", "")))
-                if text:
+                if text and not _is_continuation_marker(text):
                     parts.append(text)
         return "\n".join(parts).strip()
     return ""

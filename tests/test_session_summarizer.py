@@ -57,6 +57,22 @@ def test_format_claude_transcript_includes_user_assistant_tools(tmp_path: Path) 
     assert "1 failed" not in formatted
 
 
+def test_raw_fallback_skips_transcript_scaffolding() -> None:
+    text = """=== Transcript of a conversation between a human and Claude Code ===
+[20:15:51] e00d6c91
+[Continuing from a previous session]
+User asked to fix the summarizer.
+Claude Code updated transcript parsing.
+"""
+
+    summary = session_summarizer._format_raw_bullets(text)
+
+    assert "Transcript of a conversation" not in summary
+    assert "e00d6c91" not in summary
+    assert "Continuing from a previous session" not in summary
+    assert "- User asked to fix the summarizer." in summary
+
+
 def test_empty_transcripts_are_ignored(tmp_path: Path) -> None:
     transcript = tmp_path / "empty.jsonl"
     write_jsonl(transcript, [{"type": "session_meta", "payload": {"cwd": str(tmp_path)}}])

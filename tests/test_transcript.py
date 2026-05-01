@@ -65,6 +65,39 @@ def test_parse_transcript_skips_invalid_and_tool_result(tmp_path: Path) -> None:
     assert turns[0].tool_calls == ["Bash(ls -la)"]
 
 
+def test_parse_transcript_skips_continuation_marker(tmp_path: Path) -> None:
+    transcript = tmp_path / "sample.jsonl"
+    transcript.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "type": "user",
+                        "uuid": "u1",
+                        "timestamp": "2026-03-07T05:00:00Z",
+                        "message": {"content": "[Continuing from a previous session]"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "user",
+                        "uuid": "u2",
+                        "timestamp": "2026-03-07T05:00:01Z",
+                        "message": {"content": "Real request"},
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    turns = parse_transcript(transcript)
+
+    assert len(turns) == 1
+    assert turns[0].uuid == "u2"
+    assert turns[0].content == "Real request"
+
+
 def test_find_turn_context_supports_uuid_prefix() -> None:
     turns = [
         type("T", (), {"uuid": "aaaabbbb-1"})(),

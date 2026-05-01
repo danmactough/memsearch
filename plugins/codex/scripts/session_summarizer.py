@@ -52,7 +52,7 @@ def _format_claude_transcript_fallback(path: str | Path) -> str:
         if entry_type == "user":
             if isinstance(content, str):
                 text = _strip_hook_tags(content).strip()
-                if text:
+                if text and not _is_transcript_scaffolding_line(text):
                     output.append(f"[Human]: {text}")
                     content_count += 1
             elif isinstance(content, list):
@@ -61,7 +61,7 @@ def _format_claude_transcript_fallback(path: str | Path) -> str:
                         continue
                     if block.get("type") == "text":
                         text = _strip_hook_tags(str(block.get("text", ""))).strip()
-                        if text:
+                        if text and not _is_transcript_scaffolding_line(text):
                             output.append(f"[Human]: {text}")
                             content_count += 1
                     elif block.get("type") == "tool_result":
@@ -627,8 +627,23 @@ def _truncate(text: str, max_chars: int) -> str:
     return text[:max_chars] + "...(truncated)"
 
 
+def _is_transcript_scaffolding_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if stripped.startswith("=== Transcript of a conversation between"):
+        return True
+    if stripped.lower() == "[continuing from a previous session]":
+        return True
+    return re.match(r"^\[\d{2}:\d{2}:\d{2}\]\s+[0-9a-f-]{8,}", stripped, flags=re.IGNORECASE) is not None
+
+
 def _format_raw_bullets(text: str) -> str:
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not _is_transcript_scaffolding_line(line)
+    ]
     return "\n".join(f"- {line}" for line in lines[:20])
 
 
