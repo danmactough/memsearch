@@ -1,0 +1,35 @@
+{
+  "name": "pi-memsearch",
+  "version": "1.0.0",
+  "description": "memsearch extension for pi",
+  "main": "./plugins/pi/pindex.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danmactough/pi-memsearch.git"
+  },
+  "keywords": [],
+  "author": "Dan MacTough <danmactough@gmail.com> (http://mact.me/)",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/danmactough/pi-memsearch/issues"
+  },
+  "homepage": "https://github.com/danmactough/pi-memsearch#readme",
+  "devDependencies": {
+    "@mariozechner/pi-ai": "^0.70.6",
+    "@mariozechner/pi-coding-agent": "^0.70.6",
+    "@types/node": "^25.6.0",
+    "typescript": "^6.0.3"
+  },
+  "pi": {
+    "extensions": [
+      "./plugins/pi/index.ts"
+    ],
+    "prompts": [
+      "./plugins/pi/prompts"
+    ]
+  }
+}
