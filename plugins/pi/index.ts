@@ -13,10 +13,10 @@
  *   pi install git:github.com/danmactough/pi-memsearch
  */
 
-import type { ExtensionAPI, SessionEntry } from "@mariozechner/pi-coding-agent";
-import { SessionManager } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, SessionEntry } from "@earendil-works/pi-coding-agent";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { complete } from "@mariozechner/pi-ai";
+import { complete } from "@earendil-works/pi-ai";
 import * as cp from "node:child_process";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
