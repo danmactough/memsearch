@@ -2,7 +2,7 @@
   "name": "pi-memsearch",
   "version": "1.0.0",
   "description": "memsearch extension for pi",
-  "main": "./plugins/pi/pindex.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -26,10 +26,10 @@
   },
   "pi": {
     "extensions": [
-      "./plugins/pi/index.ts"
+      "index.ts"
     ],
     "prompts": [
-      "./plugins/pi/prompts"
+      "prompts"
     ]
   }
 }
