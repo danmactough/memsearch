@@ -4,9 +4,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-# Prevent infinite loop: if this Stop was triggered by a previous Stop hook, bail out
-STOP_HOOK_ACTIVE=$(_json_val "$INPUT" "stop_hook_active" "false")
-if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+# Prevent infinite loop: child `claude -p` processes inherit MEMSEARCH_NO_WATCH=1.
+# All other hook helpers already bail on this flag; stop.sh must too.
+if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then
   echo '{}'
   exit 0
 fi
