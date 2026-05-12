@@ -1,0 +1,29 @@
+{
+  "name": "memsearch",
+  "version": "1.0.0",
+  "description": "<h1 align=\"center\">   <img src=\"assets/logo-icon.jpg\" alt=\"\" width=\"100\" valign=\"middle\">   &nbsp;   memsearch </h1>",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "version": "npm run -w plugins/pi version --no-git-tag-version --allow-same-version",
+    "version:claude": ""
+  },
+  "workspaces": [
+    "plugins/pi"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/danmactough/memsearch.git"
+  },
+  "keywords": [],
+  "author": "Dan MacTough <danmactough@gmail.com> (http://mact.me/)",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/danmactough/memsearch/issues"
+  },
+  "homepage": "https://github.com/danmactough/memsearch#readme"
+}
