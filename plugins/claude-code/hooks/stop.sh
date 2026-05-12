@@ -4,6 +4,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
+# Prevent infinite loop: child `claude -p` processes inherit MEMSEARCH_NO_WATCH=1.
+# All other hook helpers already bail on this flag; stop.sh must too.
 if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then
   echo '{}'
   exit 0
@@ -101,6 +103,7 @@ SUMMARY=""
 if command -v claude &>/dev/null; then
   SUMMARY=$(printf '%s' "$PARSED" | MEMSEARCH_NO_WATCH=1 CLAUDECODE= claude -p \
     --model haiku \
+    --bare \
     --no-session-persistence \
     --no-chrome \
     --system-prompt "$SYSTEM_PROMPT" \

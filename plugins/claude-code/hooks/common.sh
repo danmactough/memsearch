@@ -152,27 +152,23 @@ kill_orphaned_index() {
     rm -f "$INDEX_PIDFILE"
   fi
 
-  # 2. Sweep any orphaned memsearch index processes for this MEMORY_DIR.
-  # Use SIGKILL to clean up processes that may not respond to SIGTERM
-  # (e.g. Python with non-daemon threads).
+  # 2. Sweep any orphaned memsearch index processes for this MEMORY_DIR
   local orphans
   orphans=$(pgrep -f "memsearch index $MEMORY_DIR" 2>/dev/null || true)
   if [ -n "$orphans" ]; then
     echo "$orphans" | while read -r opid; do
-      kill -9 "$opid" 2>/dev/null || true
+      kill "$opid" 2>/dev/null || true
     done
   fi
 
   # 3. Kill orphaned milvus_lite processes (they don't exit when memsearch index exits)
-  # Use SIGKILL — these processes accumulate under repeated session cycles and
-  # milvus_lite doesn't always respond to SIGTERM.
   orphans=$(pgrep -f "milvus_lite/lib/milvus" 2>/dev/null || true)
   if [ -n "$orphans" ]; then
     echo "$orphans" | while read -r opid; do
-      kill -9 "$opid" 2>/dev/null || true
+      kill "$opid" 2>/dev/null || true
     done
   fi
-
+}
 
 # --- Watch singleton management ---
 
@@ -201,17 +197,12 @@ stop_watch() {
     rm -f "$WATCH_PIDFILE"
   fi
 
-  # 2. Sweep for orphaned watch processes targeting this MEMORY_DIR.
-  # Use SIGKILL because `uvx` is often the parent of the real `memsearch watch`
-  # process. When `uvx` is killed (above), its child becomes orphaned. Python's
-  # watchdog observer thread is non-daemon, so SIGTERM to the orphan won't
-  # actually exit the process — Python hangs waiting for the observer thread.
-  # SIGKILL is the only reliable way to clean these up.
+  # 2. Sweep for orphaned watch processes targeting this MEMORY_DIR
   local orphans
   orphans=$(pgrep -f "memsearch watch $MEMORY_DIR" 2>/dev/null || true)
   if [ -n "$orphans" ]; then
     echo "$orphans" | while read -r opid; do
-      kill -9 "$opid" 2>/dev/null || true
+      kill "$opid" 2>/dev/null || true
     done
   fi
 }
