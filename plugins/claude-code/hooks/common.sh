@@ -137,7 +137,6 @@ INDEX_PIDFILE="$MEMSEARCH_DIR/.index.pid"
 # python/milvus processes that can consume tens of GB of virtual memory and
 # cause subsequent sessions to freeze due to resource exhaustion.
 kill_orphaned_index() {
-  echo "kill_orphaned_index called with MEMSEARCH_NO_WATCH=${MEMSEARCH_NO_WATCH:-}" >> /tmp/forkbomb.txt
   # Skip in child claude -p processes to avoid killing the current parent's work
   if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then
     return 0
@@ -156,7 +155,6 @@ kill_orphaned_index() {
   # 2. Sweep any orphaned memsearch index processes for this MEMORY_DIR.
   # Use SIGKILL to clean up processes that may not respond to SIGTERM
   # (e.g. Python with non-daemon threads).
-  echo "Looking for orphaned memsearch index processes with pattern: memsearch index $MEMORY_DIR" >> /tmp/forkbomb.txt
   local orphans
   orphans=$(pgrep -f "memsearch index $MEMORY_DIR" 2>/dev/null || true)
   if [ -n "$orphans" ]; then
@@ -168,14 +166,13 @@ kill_orphaned_index() {
   # 3. Kill orphaned milvus_lite processes (they don't exit when memsearch index exits)
   # Use SIGKILL — these processes accumulate under repeated session cycles and
   # milvus_lite doesn't always respond to SIGTERM.
-  echo "Looking for orphaned milvus_lite processes with pattern: milvus_lite/lib/milvus" >> /tmp/forkbomb.txt
   orphans=$(pgrep -f "milvus_lite/lib/milvus" 2>/dev/null || true)
   if [ -n "$orphans" ]; then
     echo "$orphans" | while read -r opid; do
       kill -9 "$opid" 2>/dev/null || true
     done
   fi
-}
+
 
 # --- Watch singleton management ---
 
@@ -190,7 +187,6 @@ _kill_tree() {
 
 # Stop the watch process: pidfile first, then sweep for orphans
 stop_watch() {
-  echo "stop_watch called with MEMSEARCH_NO_WATCH=${MEMSEARCH_NO_WATCH:-}" >> /tmp/forkbomb.txt
   # Skip watch management in child claude -p processes (e.g. stop.sh summarization)
   if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then
     return 0
@@ -211,7 +207,6 @@ stop_watch() {
   # watchdog observer thread is non-daemon, so SIGTERM to the orphan won't
   # actually exit the process — Python hangs waiting for the observer thread.
   # SIGKILL is the only reliable way to clean these up.
-  echo "Looking for orphaned memsearch watch processes with pattern: memsearch watch $MEMORY_DIR" >> /tmp/forkbomb.txt
   local orphans
   orphans=$(pgrep -f "memsearch watch $MEMORY_DIR" 2>/dev/null || true)
   if [ -n "$orphans" ]; then
