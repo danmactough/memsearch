@@ -4,9 +4,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-# Prevent infinite loop: if this Stop was triggered by a previous Stop hook, bail out
-STOP_HOOK_ACTIVE=$(_json_val "$INPUT" "stop_hook_active" "false")
-if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+# Child `claude -p` summarizer processes inherit MEMSEARCH_NO_WATCH=1.
+# Bail out before doing anything else — without this guard, a child's Stop hook
+# would re-enter stop.sh and spawn another `claude -p`, recursing indefinitely.
+if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then
   echo '{}'
   exit 0
 fi
@@ -103,6 +104,7 @@ SUMMARY=""
 if command -v claude &>/dev/null; then
   SUMMARY=$(printf '%s' "$PARSED" | MEMSEARCH_NO_WATCH=1 CLAUDECODE= claude -p \
     --model haiku \
+    --settings '{"enabledPlugins":{"memsearch@memsearch-plugins":false}}' \
     --no-session-persistence \
     --no-chrome \
     --system-prompt "$SYSTEM_PROMPT" \

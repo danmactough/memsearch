@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>memsearch shutdown loop — diagnosis</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --bg-elev: #161b22;
+    --fg: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --warn: #f0883e;
+    --danger: #ff7b72;
+    --good: #3fb950;
+    --code-bg: #0a0d12;
+    --border: #30363d;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+  .deck {
+    position: relative;
+    height: 100vh;
+    width: 100vw;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    display: none;
+    padding: 4rem 6rem 6rem;
+    overflow-y: auto;
+  }
+  .slide.active { display: flex; flex-direction: column; }
+  .slide h1 {
+    font-size: 2.6rem;
+    line-height: 1.15;
+    margin: 0 0 1.5rem;
+    color: var(--fg);
+    letter-spacing: -0.02em;
+  }
+  .slide h2 {
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    margin: 0 0 .6rem;
+    font-weight: 600;
+  }
+  .slide p { font-size: 1.15rem; line-height: 1.55; margin: 0 0 1rem; max-width: 60ch; }
+  .slide ul, .slide ol { font-size: 1.1rem; line-height: 1.6; max-width: 60ch; }
+  .slide li { margin-bottom: .4rem; }
+  .slide code, .slide pre {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+  }
+  .slide code {
+    background: var(--code-bg);
+    padding: .12em .4em;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    color: var(--accent);
+  }
+  .slide pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    line-height: 1.5;
+    margin: .5rem 0 1rem;
+    font-size: .9rem;
+  }
+  .slide pre code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--fg);
+  }
+  .slide .lead {
+    color: var(--muted);
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+  .chip {
+    display: inline-block;
+    padding: .15em .55em;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: .85em;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--bg-elev);
+  }
+  .chip.conf-5 { color: var(--danger); border-color: var(--danger); }
+  .chip.conf-4 { color: var(--warn);   border-color: var(--warn); }
+  .chip.conf-3 { color: var(--muted); }
+  .chip.conf-2 { color: var(--muted); opacity: .8; }
+  .chip.conf-1 { color: var(--muted); opacity: .6; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: .95rem;
+  }
+  th, td {
+    text-align: left;
+    padding: .6rem .8rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    color: var(--muted);
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 600;
+  }
+  tr.root td { background: rgba(255,123,114,0.05); }
+
+  .nav {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%; transform: translateX(-50%);
+    display: flex; gap: .5rem; align-items: center;
+    z-index: 10;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .4rem .6rem;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    border: 0;
+    padding: 0;
+    transition: background .15s;
+  }
+  .dot:hover { background: var(--muted); }
+  .dot.active { background: var(--accent); }
+  .counter {
+    position: fixed;
+    top: 1.5rem; right: 1.8rem;
+    font-family: var(--mono);
+    font-size: .85rem;
+    color: var(--muted);
+    z-index: 10;
+  }
+  .hint {
+    position: fixed;
+    bottom: 1.5rem; right: 1.8rem;
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: var(--muted);
+    z-index: 10;
+  }
+  .title-slide {
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .title-slide .super {
+    font-family: var(--mono);
+    font-size: .9rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .25em;
+    margin-bottom: 1.5rem;
+  }
+  .title-slide h1 { font-size: 4rem; margin-bottom: 1.5rem; }
+  .title-slide .sub { font-size: 1.4rem; color: var(--muted); max-width: 70ch; }
+  .diagram {
+    font-family: var(--mono);
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem 1.4rem;
+    line-height: 1.55;
+    white-space: pre;
+    margin: .5rem 0 1rem;
+    font-size: .9rem;
+    overflow-x: auto;
+  }
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: .8rem 1.2rem;
+    background: rgba(88,166,255,0.06);
+    margin: 1rem 0;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout.warn { border-color: var(--warn); background: rgba(240,136,62,0.06); }
+  .callout.danger { border-color: var(--danger); background: rgba(255,123,114,0.06); }
+  .callout.good { border-color: var(--good); background: rgba(63,185,80,0.06); }
+  .kbd {
+    font-family: var(--mono);
+    font-size: .8em;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    background: var(--bg-elev);
+  }
+  .meta-row {
+    display: flex; gap: 1.5rem; flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: .85rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+  .diff-add { color: var(--good); }
+  .diff-del { color: var(--danger); }
+  .small { font-size: .9rem; color: var(--muted); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  @media (max-width: 900px) {
+    .slide { padding: 2rem 2rem 5rem; }
+    .slide h1 { font-size: 2rem; }
+    .title-slide h1 { font-size: 2.5rem; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="counter" id="counter">1 / 11</div>
+<div class="hint">← → to navigate</div>
+
+<div class="deck" id="deck">
+
+<!-- Slide 1: Title -->
+<section class="slide title-slide active">
+  <div class="super">memsearch plugin · shutdown bug</div>
+  <h1>The infinite loop on exit.</h1>
+  <div class="sub">A diagnosis of why Claude Code hangs when you close a session — and why every prior fix attempt was reverted.</div>
+  <div class="meta-row" style="margin-top: 3rem;">
+    <span>repo: memsearch</span>
+    <span>file: plugins/claude-code/</span>
+    <span>5 reverted commits</span>
+  </div>
+</section>
+
+<!-- Slide 2: The symptom -->
+<section class="slide">
+  <h2>Symptom</h2>
+  <h1>You type <code>/exit</code>. Claude Code never returns.</h1>
+  <p>On session shutdown, the terminal hangs indefinitely. Activity Monitor shows a tree of <code>claude</code> / <code>node</code> / <code>uvx memsearch</code> processes spawning beneath the parent shell. Each child completes in ~10s, then spawns another, then another.</p>
+  <p>From the user's perspective: an infinite loop. From the OS's perspective: a deeply-nested chain of synchronous child invocations.</p>
+  <div class="callout warn">
+    Git history shows <strong>five commits</strong> trying to fix this — <em>all reverted</em>:
+    <code>49b8ac0</code>, <code>56be020</code>, <code>79251d9</code>, <code>ee7226e</code>, <code>3d4dd1d</code>.
+    The current <code>main</code> still has the original, ineffective guard.
+  </div>
+</section>
+
+<!-- Slide 3: Architecture -->
+<section class="slide">
+  <h2>Architecture refresher</h2>
+  <h1>What the Stop hook actually does.</h1>
+  <p>When a Claude Code session "stops" (model finishes responding), the memsearch <code>Stop</code> hook runs <code>stop.sh</code>, which summarizes the last turn into a daily Markdown file.</p>
+  <div class="diagram">parent session
+  └─ Stop hook fires
+     └─ stop.sh
+        ├─ parse-transcript.sh   (extract last turn)
+        ├─ claude -p --model haiku ...   ← <span class="diff-del">spawns a child Claude Code session</span>
+        ├─ append summary to YYYY-MM-DD.md
+        └─ memsearch index $MEMORY_DIR</div>
+  <p class="small">The child <code>claude -p</code> is what makes the summary. It's a fresh Claude Code session — its own transcript, its own hooks.</p>
+</section>
+
+<!-- Slide 4: The misdiagnosis -->
+<section class="slide">
+  <h2>The misdiagnosis</h2>
+  <h1>The <code>stop_hook_active</code> guard is solving the wrong problem.</h1>
+  <p>Current <code>stop.sh</code> tries to break the loop with this check:</p>
+  <pre><code>STOP_HOOK_ACTIVE=$(_json_val "$INPUT" "stop_hook_active" "false")
+if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
+  echo '{}'; exit 0
+fi</code></pre>
+  <p>But <code>stop_hook_active</code> is Claude Code's signal for an <em>intra-session</em> condition: "the Stop hook returned <code>decision: block</code>, Claude continued, and is now stopping again." It is set on the next <code>Stop</code> event <strong>in the same session</strong>.</p>
+  <div class="callout danger">
+    A child <code>claude -p</code> is a brand-new session. Its first <code>Stop</code> event carries <code>stop_hook_active=false</code>. The guard never fires.
+  </div>
+</section>
+
+<!-- Slide 5: Root cause -->
+<section class="slide">
+  <h2>Root cause <span class="chip conf-5">confidence 5 / 5</span></h2>
+  <h1>The child fires the same hook. Stop.sh reenters itself.</h1>
+  <ol>
+    <li>User exits parent session → parent <code>Stop</code> fires → <code>stop.sh</code> runs.</li>
+    <li><code>stop.sh</code> runs <code>claude -p --model haiku ...</code> to summarize.</li>
+    <li>Child Claude Code session boots, loads plugins (memsearch is user-scope, so it loads), runs the summarize prompt, then fires <em>its own</em> <code>Stop</code>.</li>
+    <li>Child <code>Stop</code> → <code>stop.sh</code> runs in the child. <code>stop_hook_active=false</code>. Guard does not fire.</li>
+    <li>Child <code>stop.sh</code> parses <em>its</em> transcript, finds the haiku turn, runs <code>claude -p</code> again. Grandchild.</li>
+    <li>Each level takes ~10s. The shell waits on its child synchronously. Perceived as infinite.</li>
+  </ol>
+</section>
+
+<!-- Slide 6: Hypotheses table -->
+<section class="slide">
+  <h2>What else was considered</h2>
+  <h1>Seven hypotheses, one root cause.</h1>
+  <table>
+    <thead><tr><th>#</th><th>Hypothesis</th><th>Conf.</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr class="root"><td>1</td><td>Child <code>claude -p</code> fires its own <code>Stop</code>; <code>stop_hook_active</code> guard is intra-session only</td><td><span class="chip conf-5">5/5</span></td><td><strong>Root cause</strong></td></tr>
+      <tr><td>2</td><td><code>memsearch watch</code> writes to memory files → file-watcher loop</td><td><span class="chip conf-1">1/5</span></td><td>Ruled out: index writes to Milvus, not <code>.md</code>; watch skipped on Lite</td></tr>
+      <tr><td>3</td><td><code>SessionEnd</code> re-triggers <code>SessionStart</code></td><td><span class="chip conf-1">1/5</span></td><td>Ruled out: <code>SessionEnd</code> only kills processes</td></tr>
+      <tr><td>4</td><td><code>kill_orphaned_index</code> kills the wrong PIDs</td><td><span class="chip conf-2">2/5</span></td><td>Pgrep is scoped; kills don't <em>create</em> a loop</td></tr>
+      <tr><td>5</td><td>Child <code>SessionStart</code> races parent on milvus_lite file lock</td><td><span class="chip conf-3">3/5</span></td><td>Real bug but causes contention, not recursion</td></tr>
+      <tr><td>6</td><td>Async <code>Stop</code> hook re-fires somehow</td><td><span class="chip conf-2">2/5</span></td><td>Async means backgrounded, not re-fired</td></tr>
+      <tr><td>7</td><td><code>stdin</code> blocking in <code>common.sh</code></td><td><span class="chip conf-2">2/5</span></td><td>Already bounded by <code>timeout 2 cat</code> / perl alarm</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Slide 7: The evidence -->
+<section class="slide">
+  <h2>The evidence</h2>
+  <h1>The env var marker is already there — just never checked.</h1>
+  <p>Look at the <code>claude -p</code> invocation in current <code>stop.sh</code>:</p>
+  <pre><code>SUMMARY=$(printf '%s' "$PARSED" | <span class="diff-add">MEMSEARCH_NO_WATCH=1</span> CLAUDECODE= claude -p \
+  --model haiku \
+  --no-session-persistence \
+  --no-chrome ...)</code></pre>
+  <p><code>MEMSEARCH_NO_WATCH=1</code> is already being exported to the child env. Three helpers in <code>common.sh</code> consult it (<code>start_watch</code>, <code>stop_watch</code>, <code>kill_orphaned_index</code>), so child sessions skip watch management.</p>
+  <div class="callout danger">
+    But <strong>the top of <code>stop.sh</code> never checks it</strong>. Of all places where the guard would have actually stopped recursion, the hook's own entry point is the one place it was forgotten.
+  </div>
+</section>
+
+<!-- Slide 8: Why --bare is not the fix -->
+<section class="slide">
+  <h2>Why the obvious fix doesn't work</h2>
+  <h1><code>--bare</code> would break authentication.</h1>
+  <p>Claude Code has a <code>--bare</code> flag that explicitly skips hooks. It was added in commit <code>49b8ac0</code> ("Update stop hook to avoid endless recursion"). Read its full description from <code>claude --help</code>:</p>
+  <pre><code>--bare    Minimal mode: skip hooks, LSP, plugin sync, attribution,
+          auto-memory, background prefetches, keychain reads, and
+          CLAUDE.md auto-discovery. Sets CLAUDE_CODE_SIMPLE=1.
+          <span class="diff-del">Anthropic auth is strictly ANTHROPIC_API_KEY or apiKeyHelper</span>
+          <span class="diff-del">via --settings (OAuth and keychain are never read).</span></code></pre>
+  <div class="callout danger">
+    This user is on a Claude subscription (OAuth). A <code>--bare</code> child can't authenticate → the summarizer silently produces nothing. <code>--bare</code> was the right intuition but the wrong knob.
+  </div>
+</section>
+
+<!-- Slide 9: The fix part 1 -->
+<section class="slide">
+  <h2>The fix · part 1</h2>
+  <h1>Disable just memsearch in the child, via <code>--settings</code>.</h1>
+  <p><code>--settings</code> accepts inline JSON that merges on top of the resolved settings. We override <code>enabledPlugins</code> for memsearch only:</p>
+  <pre><code>SUMMARY=$(printf '%s' "$PARSED" | MEMSEARCH_NO_WATCH=1 CLAUDECODE= claude -p \
+  --model haiku \
+  <span class="diff-add">--settings '{"enabledPlugins":{"memsearch@memsearch-plugins":false}}' \</span>
+  --no-session-persistence \
+  --no-chrome \
+  --system-prompt "$SYSTEM_PROMPT")</code></pre>
+  <div class="callout good">
+    Empirically verified by running the child with <code>--include-hook-events --output-format stream-json --verbose</code>: the <code>init</code> event lists only the other plugins. Memsearch is excluded; its hooks never fire.
+  </div>
+  <ul>
+    <li>Targets exactly the offending plugin — other plugins keep working.</li>
+    <li>Independent of where memsearch is installed (user / project / local).</li>
+    <li>Doesn't touch auth. OAuth keychain still works.</li>
+  </ul>
+</section>
+
+<!-- Slide 10: The fix part 2 -->
+<section class="slide">
+  <h2>The fix · part 2 (defense in depth)</h2>
+  <h1>And actually check the env-var guard.</h1>
+  <p>Promote <code>MEMSEARCH_NO_WATCH=1</code> to a top-of-file guard in both <code>stop.sh</code> and <code>session-start.sh</code>. The variable is already exported on the <code>claude -p</code> line via <code>VAR=val cmd</code> — bash inherits it. We just need to read it at the entry point:</p>
+  <pre><code>source "$SCRIPT_DIR/common.sh"
+
+<span class="diff-add">if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then</span>
+<span class="diff-add">  echo '{}'</span>
+<span class="diff-add">  exit 0</span>
+<span class="diff-add">fi</span></code></pre>
+  <p>And delete the dead <code>stop_hook_active</code> block while we're there — it was protecting against something that wasn't the problem.</p>
+  <p class="small">Bonus: the <code>session-start.sh</code> guard also fixes Hypothesis 5 — child sessions stop racing the parent on the milvus_lite file lock.</p>
+</section>
+
+<!-- Slide 11: Why every prior attempt was reverted -->
+<section class="slide">
+  <h2>Postmortem on the five reverts</h2>
+  <h1>Each attempt had the right idea but the wrong wiring.</h1>
+  <table>
+    <thead><tr><th>Commit</th><th>What it tried</th><th>Why it didn't survive</th></tr></thead>
+    <tbody>
+      <tr><td><code>49b8ac0</code></td><td>Add <code>--bare</code></td><td>Broke OAuth — silent auth failure on subscription</td></tr>
+      <tr><td><code>56be020</code></td><td>Switch guard from <code>stop_hook_active</code> to <code>MEMSEARCH_NO_WATCH</code></td><td>Right idea, but reverted with the others before being kept</td></tr>
+      <tr><td><code>79251d9</code></td><td>SIGKILL instead of SIGTERM on orphan sweep</td><td>Addressed cleanup, not recursion</td></tr>
+      <tr><td><code>ee7226e</code></td><td>Add debug logging to <code>/tmp/forkbomb.txt</code></td><td>Diagnostic, not a fix</td></tr>
+      <tr><td><code>3d4dd1d</code></td><td>Final revert</td><td>Restored the original, ineffective <code>stop_hook_active</code> guard</td></tr>
+    </tbody>
+  </table>
+  <div class="callout good">
+    With the <code>--settings</code> override plus the entry-point env-var guard, both layers of defense are in place: the child can't load the plugin in the first place, and even if a future regression undid that flag, the hook would still bail at line one.
+  </div>
+</section>
+
+</div>
+
+<nav class="nav" id="nav"></nav>
+
+<script>
+(function() {
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const nav = document.getElementById('nav');
+  const counter = document.getElementById('counter');
+  let idx = 0;
+
+  slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'dot';
+    dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+    dot.addEventListener('click', () => go(i));
+    nav.appendChild(dot);
+  });
+
+  function go(n) {
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+    nav.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+    counter.textContent = (idx + 1) + ' / ' + slides.length;
+    slides[idx].scrollTop = 0;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(idx + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(idx - 1); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+
+  go(0);
+})();
+</script>
+</body>
+</html>

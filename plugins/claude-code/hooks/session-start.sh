@@ -10,6 +10,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 exec < /dev/null
 source "$SCRIPT_DIR/common.sh"
 
+# Child `claude -p` summarizer processes inherit MEMSEARCH_NO_WATCH=1.
+# Bail out so they don't run the SessionStart bootstrap (uvx upgrade, PyPI version
+# check, Lite-mode background index), which would race the parent on the
+# milvus_lite file lock and slow down every nested invocation.
+if [ "${MEMSEARCH_NO_WATCH:-}" = "1" ]; then
+  echo '{}'
+  exit 0
+fi
+
 # Bootstrap: if memsearch not available, install uv and warm up uvx cache
 if [ -z "$MEMSEARCH_CMD" ]; then
   if ! command -v uvx &>/dev/null; then
